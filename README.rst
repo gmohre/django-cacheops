@@ -120,6 +120,12 @@ Additionally, you can tell cacheops to degrade gracefully on redis fail with:
 
     CACHEOPS_DEGRADE_ON_FAILURE = True
 
+You can also tell cacheops to fuzz the timeout a given number of seconds on either side of the timeout so all caches created in a single transaction don't timeout at the same time with:
+
+.. code:: python
+
+    CACHEOPS_FUZZY_TIMEOUT = 30
+
 There is also a possibility to make all cacheops methods and decorators no-op, e.g. for testing:
 
 .. code:: python

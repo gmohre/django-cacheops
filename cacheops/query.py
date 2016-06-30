@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import json
+import random
 import threading
 import six
 from funcy import select_keys, cached_property, once, once_per, monkey, wraps, walk
@@ -40,6 +41,11 @@ def cache_thing(cache_key, data, cond_dnfs, timeout):
     Writes data to cache and creates appropriate invalidators.
     """
     assert not in_transaction()
+    if hasattr(settings, 'CACHEOPS_FUZZY_TIMEOUT'):
+        fuzzy = settings.CACHEOPS_FUZZY_TIMEOUT
+        if fuzzy > 0:
+            timeout = random.randrange( timeout - fuzzy, timeout + fuzzy)
+
     load_script('cache_thing', settings.CACHEOPS_LRU)(
         keys=[cache_key],
         args=[
