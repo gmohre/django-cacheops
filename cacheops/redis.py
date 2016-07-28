@@ -88,7 +88,10 @@ else:
             except redis.ConnectionError:
                 return super(ReplicaProxyRedis, self).get(*args, **kwargs)
 
-    redis_client = ReplicaProxyRedis(**settings.CACHEOPS_REDIS)
+    if isinstance(settings.CACHEOPS_REDIS, six.string_types):
+        redis_client = ReplicaProxyRedis.from_url(settings.CACHEOPS_REDIS)
+    else:
+        redis_client = ReplicaProxyRedis(**settings.CACHEOPS_REDIS)
 
 ### Lua script loader
 
