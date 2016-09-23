@@ -44,7 +44,9 @@ def cache_thing(cache_key, data, cond_dnfs, timeout):
     if hasattr(settings, 'CACHEOPS_FUZZY_TIMEOUT'):
         fuzzy = settings.CACHEOPS_FUZZY_TIMEOUT
         if fuzzy > 0:
-            timeout = random.randrange( timeout - fuzzy, timeout + fuzzy)
+            minimum = timeout - fuzzy if timeout > fuzzy else 1
+            maximum = timeout + fuzzy
+            timeout = random.randrange(minimum, maximum)
 
     load_script('cache_thing', settings.CACHEOPS_LRU)(
         keys=[cache_key],
