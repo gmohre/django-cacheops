@@ -10,13 +10,13 @@ README = open('README.rst').read()    \
 
 setup(
     name='django-cacheops',
-    version='3.0.1.1',
-    author='Alexander Schepanovski',
-    author_email='suor.web@gmail.com',
+    version='3.0.1.2',
+    author='Hearst Digital Media',
+    author_email='nwolff@hearst.com',
 
-    description='A slick ORM cache with automatic granular event-driven invalidation for Django.',
+    description="Hearst's fork of https://github.com/Suor/django-cacheops.",
     long_description=README,
-    url='http://github.com/Suor/django-cacheops',
+    url='http://github.com/HearstCorp/django-cacheops',
     license='BSD',
 
     packages=[
