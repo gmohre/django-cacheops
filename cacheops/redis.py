@@ -1,12 +1,8 @@
 from __future__ import absolute_import
 import warnings
 import six
-import ctypes
-import logging
-import mmap
-import os
-import stat
 from time import time
+import logging
 
 from funcy import decorator, identity, memoize
 import redis
@@ -16,58 +12,33 @@ from .conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Global circuit-breaker flag, implemented as an mmapped temp file. Values:
-#   0 = circuit breaker closed, Redis calls are attempted.
+# Global circuit-breaker flag. Values:
+#   None = circuit breaker closed, Redis calls are attempted.
 #   <time_seconds> = circuit breaker open, Redis calls are skipped.
-
-CIRCUIT_BREAKER_FILENAME = "/tmp/redis_circuit_breaker"
-
-
-def open_cb_file(extra_flags=0):
-    return os.open(CIRCUIT_BREAKER_FILENAME, os.O_RDWR | extra_flags, stat.S_IRUSR | stat.S_IWUSR)
-
-
-def open_or_create_cb_file():
-    try:
-        fd = open_cb_file()
-    except OSError as e:
-        if e.strerror.startswith("No such file"):
-            fd = open_cb_file(os.O_CREAT | os.O_NOATIME)
-            os.write(fd, '\x00' * 1024)
-        else:
-            raise
-    return fd
-
-
-try:
-    fd = open_or_create_cb_file()
-    buf = mmap.mmap(fd, 1024)
-except (OSError, ValueError):
-    circuit_breaker = lambda: None  # noqa: E731
-    circuit_breaker.value = 0
-else:
-    circuit_breaker = ctypes.c_int.from_buffer(buf)
+circuit_breaker_opened = None
 
 if settings.CACHEOPS_DEGRADE_ON_FAILURE:
     @decorator
     def handle_connection_failure(call):
         """Skip Redis calls for a configurable period after a timeout."""
-        if settings.FEATURE_CACHEOPS_CIRCUIT_BREAKER and circuit_breaker.value:
+        global circuit_breaker_opened
+        if settings.FEATURE_CACHEOPS_CIRCUIT_BREAKER and circuit_breaker_opened:
             # Circuit breaker is open! Should we close it yet?
-            if time() - circuit_breaker.value > settings.REDIS_CIRCUIT_BREAKER_RESET_SECONDS:
+            if time() - circuit_breaker_opened > settings.REDIS_CIRCUIT_BREAKER_RESET_SECONDS:
                 # Yes, let's close the circuit breaker
                 logger.info("Closing Redis circuit breaker")
-                circuit_breaker.value = 0
+                circuit_breaker_opened = None
             else:
-                # No, just skip this Redis call and emulate a cache miss
+                # No, just skip this Redis call
                 logger.debug("Redis circuit breaker is open! Skipping Redis call")
-                return None
+                return
         try:
             return call()
         except redis.RedisError as e:
             # Redis timed out! Let's open the circuit breaker
-            logger.warn("The cache is unreachable! Opening Redis circuit breaker. Error: %s", e)
-            circuit_breaker.value = int(time())
+            logger.warn("The cacheops cache is unreachable! Error: %s" % e)
+            logger.info("Opening Redis circuit breaker")
+            circuit_breaker_opened = time()
         except Exception as e:
             logger.warn(e)
 else:
