@@ -7,6 +7,7 @@ import traceback
 from funcy import decorator, identity, memoize
 import redis
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.module_loading import import_string
 import random
 
 from .conf import settings
@@ -26,8 +27,12 @@ if settings.CACHEOPS_DEGRADE_ON_FAILURE:
 else:
     handle_connection_failure = identity
 
+client_class = redis.StrictRedis
+custom_client_class = getattr(settings, 'CACHEOPS_CLIENT_CLASS', None)
+if custom_client_class:
+    client_class = import_string(custom_client_class)
 
-class SafeRedis(redis.StrictRedis):
+class SafeRedis(client_class):
     get = handle_connection_failure(redis.StrictRedis.get)
 
     """ Handles failover of AWS elasticache
@@ -65,7 +70,7 @@ class LazyRedis(object):
         return setattr(self, name, value)
 
 
-CacheopsRedis = SafeRedis if settings.CACHEOPS_DEGRADE_ON_FAILURE else redis.StrictRedis
+CacheopsRedis = SafeRedis if settings.CACHEOPS_DEGRADE_ON_FAILURE else client_class
 try:
     # the conf could be a list of string
     # list would look like: ["redis://cache-001:6379/1", "redis://cache-002:6379/2"]
