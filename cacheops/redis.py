@@ -27,10 +27,9 @@ if settings.CACHEOPS_DEGRADE_ON_FAILURE:
 else:
     handle_connection_failure = identity
 
-client_class = redis.StrictRedis
-custom_client_class = getattr(settings, 'CACHEOPS_CLIENT_CLASS', None)
-if custom_client_class:
-    client_class = import_string(custom_client_class)
+client_class_name = getattr(settings, 'CACHEOPS_CLIENT_CLASS', None)
+client_class = import_string(client_class_name) if client_class_name else redis.StrictRedis
+
 
 class SafeRedis(client_class):
     get = handle_connection_failure(redis.StrictRedis.get)
