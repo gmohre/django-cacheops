@@ -78,6 +78,7 @@ class _no_invalidation(ContextDecorator):
 
     @property
     def active(self):
+        return 1  # Nerfing invalidation globally
         return self.state.depth
 
 no_invalidation = _no_invalidation()
